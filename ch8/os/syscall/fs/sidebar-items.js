@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["sys_close","sys_dup","sys_fstat","sys_linkat","sys_open","sys_pipe","sys_read","sys_unlinkat","sys_write"]};

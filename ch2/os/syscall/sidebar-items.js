@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SYSCALL_EXIT","SYSCALL_WRITE"],"fn":["syscall"],"mod":["fs","process"]};

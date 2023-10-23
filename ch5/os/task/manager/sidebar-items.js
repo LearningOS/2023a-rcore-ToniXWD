@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["add_task","fetch_task"],"struct":["TASK_MANAGER","TaskManager"]};

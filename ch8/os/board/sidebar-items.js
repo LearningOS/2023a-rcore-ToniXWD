@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CLOCK_FREQ","EXIT_FAILURE","EXIT_FAILURE_FLAG","EXIT_RESET","EXIT_SUCCESS","MMIO","QEMU_EXIT_HANDLE","VIRT_TEST"],"fn":["exit_code_encode"],"struct":["RISCV64"],"trait":["QEMUExit"],"type":["BlockDeviceImpl"]};
