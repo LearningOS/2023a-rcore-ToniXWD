@@ -1,0 +1,24 @@
+name: Jobs
+
+on: [push]
+
+env:
+  CARGO_TERM_COLOR: always
+  rust_toolchain: nightly-2022-08-05
+
+jobs:
+  gitlab-mirror:
+    if: github.repository == 'LearningOS/rCore-Tutorial-Code-2023A'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Mirror + trigger CI
+      uses: tkf2019/gitlab-mirror-and-ci-action@master
+      with:
+        args: "https://git.tsinghua.edu.cn/os-lab/2023a/public/rcore-tutorial-code-2023a"
+      env:
+        GITLAB_HOSTNAME: "git.tsinghua.edu.cn"
+        GITLAB_PROJECT_ID: "26334"
+        GITLAB_PROJECT_NAME: "rcore-tutorial-code-2023a"
+        GITLAB_PROJECT_TOKEN: ${{secrets.GITLAB_PROJECT_TOKEN}}
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
