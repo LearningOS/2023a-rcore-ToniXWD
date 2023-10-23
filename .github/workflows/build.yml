@@ -1,0 +1,89 @@
+name: Jobs
+
+on: [push]
+
+env:
+  CARGO_TERM_COLOR: always
+  rust_toolchain: nightly
+
+jobs:
+  build-doc:
+    if: github.repository == 'LearningOS/rCore-Tutorial-Code-2023A'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build doc
+        run: |
+          git clone https://github.com/LearningOS/rCore-Tutorial-Test-2023A.git user
+          cd os
+          make
+          cargo doc --no-deps --verbose
+      - name: Push to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./os/target/riscv64gc-unknown-none-elf/doc
+          destination_dir: ${{ github.ref_name }}
+  basic-test:
+    runs-on: ubuntu-latest
+    outputs:
+      points: ${{ steps.end.outputs.points}}
+    container:
+      image: duskmoon/dev-env:rcore-ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: |
+          qemu-system-riscv64 --version
+          rustup target add riscv64gc-unknown-none-elf
+          git config --global --add safe.directory /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
+          git clone https://github.com/LearningOS/rCore-Tutorial-Checker-2023A.git ci-user
+          git clone https://github.com/LearningOS/rCore-Tutorial-Test-2023A.git ci-user/user
+          ID=`git rev-parse --abbrev-ref HEAD | grep -oP 'ch\K[0-9]'`
+          # cd ci-user && make test CHAPTER=$ID passwd=${{ secrets.BASE_TEST_TOKEN }}
+          cd ci-user && make test CHAPTER=$ID passwd=${{ secrets.BASE_TEST_TOKEN }} > ../output.txt
+          cat ../output.txt
+      - name: end
+        id: end
+        run: |
+          cat output.txt | grep "Test passed" | grep -oP "\d{1,}/\d{1,}" | xargs -i echo "points={}"
+          cat output.txt | grep "Test passed" | grep -oP "\d{1,}/\d{1,}" | xargs -i echo "points={}" >> $GITHUB_OUTPUT
+  gitlab-mirror:
+    if: github.repository == 'LearningOS/rCore-Tutorial-Code-2023A'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Mirror + trigger CI
+      uses: tkf2019/gitlab-mirror-and-ci-action@master
+      with:
+        args: "https://git.tsinghua.edu.cn/os-lab/2023a/public/rcore-tutorial-code-2023a"
+      env:
+        GITLAB_HOSTNAME: "git.tsinghua.edu.cn"
+        GITLAB_PROJECT_ID: "26334"
+        GITLAB_PROJECT_NAME: "rcore-tutorial-code-2023a"
+        GITLAB_PROJECT_TOKEN: ${{ secrets.GITLAB_PROJECT_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  deploy:
+    if: github.repository != 'LearningOS/rCore-Tutorial-Code-2023A'
+    name: Deploy to pages
+    needs: basic-test
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - uses: actions/checkout@v3
+        continue-on-error: true
+        with:
+          ref: 'gh-pages'
+      - name: Save Log File
+        uses: yfblock/multi-rank-log@main
+        with:
+          public-dir: classroom
+          points: ${{ needs.basic-test.outputs.points }}
+      - name: GitHub Pages
+        uses: crazy-max/ghaction-github-pages@v3
+        with:
+          target_branch: gh-pages
+          build_dir: ./classroom
+          keep_history: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
