@@ -1,0 +1,41 @@
+name: Jobs
+
+on: [push]
+
+env:
+  CARGO_TERM_COLOR: always
+  rust_toolchain: nightly
+
+jobs:
+  build-doc:
+    if: github.repository == 'LearningOS/rCore-Tutorial-Code-2023A'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build doc
+        run: |
+          git clone https://github.com/LearningOS/rCore-Tutorial-Test-2023A.git user
+          cd os
+          make
+          cargo doc --no-deps --verbose
+      - name: Push to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./os/target/riscv64gc-unknown-none-elf/doc
+          destination_dir: ${{ github.ref_name }}
+  gitlab-mirror:
+    if: github.repository == 'LearningOS/rCore-Tutorial-Code-2023A'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Mirror + trigger CI
+      uses: tkf2019/gitlab-mirror-and-ci-action@master
+      with:
+        args: "https://git.tsinghua.edu.cn/os-lab/2023a/public/rcore-tutorial-code-2023a"
+      env:
+        GITLAB_HOSTNAME: "git.tsinghua.edu.cn"
+        GITLAB_PROJECT_ID: "26334"
+        GITLAB_PROJECT_NAME: "rcore-tutorial-code-2023a"
+        GITLAB_PROJECT_TOKEN: ${{secrets.GITLAB_PROJECT_TOKEN}}
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
