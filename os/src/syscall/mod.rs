@@ -24,10 +24,45 @@ const SYSCALL_TASK_INFO: usize = 410;
 mod fs;
 mod process;
 
+use crate::{config::MAX_SYSCALL_NUM, sync::UPSafeCell};
 use fs::*;
+use lazy_static::*;
 use process::*;
+
+/// An array for sys call times
+pub struct SycCallCount {
+    sys_call_count: UPSafeCell<[u32; MAX_SYSCALL_NUM]>,
+}
+
+impl SycCallCount {
+    fn get_current(&self) -> [u32; MAX_SYSCALL_NUM] {
+        self.sys_call_count.exclusive_access().clone()
+    }
+
+    fn default() -> Self {
+        unsafe {
+            let arr = [0; MAX_SYSCALL_NUM];
+            Self {
+                sys_call_count: UPSafeCell::new(arr),
+            }
+        }
+    }
+
+    fn increase(&self, id: usize) {
+        let mut arr_ptr = self.sys_call_count.exclusive_access();
+        let item = arr_ptr.get_mut(id).unwrap();
+        *item += 1;
+    }
+}
+
+lazy_static! {
+    /// Global variable: SYS_CALL_COUNT
+    pub static ref SYS_CALL_COUNT: SycCallCount = SycCallCount::default();
+}
+
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
+    SYS_CALL_COUNT.increase(syscall_id);
     match syscall_id {
         SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
         SYSCALL_EXIT => sys_exit(args[0] as i32),
