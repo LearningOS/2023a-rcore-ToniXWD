@@ -29,13 +29,14 @@ BASE ?= 1
 # Disassembly
 DISASM ?= -x
 
-build: env $(KERNEL_BIN)
+# build: env $(KERNEL_BIN)
+build: $(KERNEL_BIN)
 
-env:
-	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET)
-	cargo install cargo-binutils
-	rustup component add rust-src
-	rustup component add llvm-tools-preview
+# env:
+# 	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET)
+# 	cargo install cargo-binutils
+# 	rustup component add rust-src
+# 	rustup component add llvm-tools-preview
 
 $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
@@ -77,4 +78,5 @@ gdbserver: build
 gdbclient:
 	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
-.PHONY: build env kernel clean disasm disasm-vim run-inner gdbserver gdbclient
+# .PHONY: build env kernel clean disasm disasm-vim run-inner gdbserver gdbclient
+.PHONY: build kernel clean disasm disasm-vim run-inner gdbserver gdbclient
