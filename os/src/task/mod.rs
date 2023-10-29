@@ -14,8 +14,11 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
+use crate::config::MAX_SYSCALL_NUM;
 use crate::loader::{get_app_data, get_num_app};
+
 use crate::sync::UPSafeCell;
+use crate::timer::get_time_us;
 use crate::trap::TrapContext;
 use alloc::vec::Vec;
 use lazy_static::*;
@@ -80,7 +83,12 @@ impl TaskManager {
         let next_task = &mut inner.tasks[0];
         next_task.task_status = TaskStatus::Running;
         let next_task_cx_ptr = &next_task.task_cx as *const TaskContext;
+
+        // 第一次运行task的时间
+        next_task.sys_call_begin = get_time_us() / 1000;
+
         drop(inner);
+
         let mut _unused = TaskContext::zero_init();
         // before this, we should drop local variables that must be dropped manually
         unsafe {
@@ -143,6 +151,11 @@ impl TaskManager {
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
+
+            if inner.tasks[next].sys_call_begin == 0 {
+                inner.tasks[next].sys_call_begin = get_time_us() / 1000;
+            }
+
             drop(inner);
             // before this, we should drop local variables that must be dropped manually
             unsafe {
@@ -152,6 +165,41 @@ impl TaskManager {
         } else {
             panic!("All applications completed!");
         }
+    }
+
+    fn increase_sys_call(&self, sys_id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let current_task = inner.current_task;
+        inner.tasks[current_task].sys_call_times[sys_id] += 1;
+        if sys_id == 64 {
+            debug!(
+                "increase sys_call_times of SYSCALL_WRITE:{}",
+                inner.tasks[current_task].sys_call_times[sys_id]
+            );
+        }
+    }
+
+    fn get_sys_call_times(&self) -> [u32; MAX_SYSCALL_NUM] {
+        let inner = self.inner.exclusive_access();
+        inner.tasks[inner.current_task].sys_call_times.clone()
+    }
+
+    fn get_task_run_times(&self) -> usize {
+        let curr_time = get_time_us() / 1000;
+        let inner = self.inner.exclusive_access();
+        curr_time - inner.tasks[inner.current_task].sys_call_begin
+    }
+
+    fn mmap(&self, start: usize, len: usize, port: usize) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let current_task = inner.current_task;
+        inner.tasks[current_task].memory_set.mmap(start, len, port)
+    }
+
+    fn munmap(&self, start: usize, len: usize) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let current_task = inner.current_task;
+        inner.tasks[current_task].memory_set.unmmap(start, len)
     }
 }
 
@@ -201,4 +249,29 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 /// Change the current 'Running' task's program break
 pub fn change_program_brk(size: i32) -> Option<usize> {
     TASK_MANAGER.change_current_program_brk(size)
+}
+
+/// Increase the sys call count
+pub fn increase_sys_call(sys_id: usize) {
+    TASK_MANAGER.increase_sys_call(sys_id);
+}
+
+/// return the sys count array of the current task
+pub fn get_sys_call_times() -> [u32; MAX_SYSCALL_NUM] {
+    TASK_MANAGER.get_sys_call_times()
+}
+
+/// return the sys count array of the current task
+pub fn get_task_run_times() -> usize {
+    TASK_MANAGER.get_task_run_times()
+}
+
+/// select_cur_task_to_mmap
+pub fn select_cur_task_to_mmap(start: usize, len: usize, port: usize) -> isize {
+    TASK_MANAGER.mmap(start, len, port)
+}
+
+/// select_cur_task_to_mmap
+pub fn select_cur_task_to_munmap(start: usize, len: usize) -> isize {
+    TASK_MANAGER.munmap(start, len)
 }
