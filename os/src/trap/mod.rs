@@ -47,6 +47,7 @@ fn set_user_trap_entry() {
 }
 
 /// enable timer interrupt in supervisor mode
+/// 应用下一次 Trap 到 S 的时候可以跳转到 __alltraps
 pub fn enable_timer_interrupt() {
     unsafe {
         sie::set_stimer();
@@ -60,7 +61,7 @@ pub fn trap_handler() -> ! {
     let cx = current_trap_cx();
     let scause = scause::read(); // get trap cause
     let stval = stval::read(); // get extra value
-    // trace!("into {:?}", scause.cause());
+                               // trace!("into {:?}", scause.cause());
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
             // jump to next instruction anyway
@@ -102,8 +103,8 @@ pub fn trap_handler() -> ! {
 /// finally, jump to new addr of __restore asm function
 pub fn trap_return() -> ! {
     set_user_trap_entry();
-    let trap_cx_ptr = TRAP_CONTEXT_BASE;
-    let user_satp = current_user_token();
+    let trap_cx_ptr = TRAP_CONTEXT_BASE; // Trap 上下文在应用地址空间中的虚拟地址
+    let user_satp = current_user_token(); // 要继续执行的应用 地址空间的 token
     extern "C" {
         fn __alltraps();
         fn __restore();
@@ -114,7 +115,8 @@ pub fn trap_return() -> ! {
         asm!(
             "fence.i",
             "jr {restore_va}",         // jump to new addr of __restore asm function
-            restore_va = in(reg) restore_va,
+            restore_va = in(reg) restore_va, // 输入约束。它告诉编译器 restore_va 变量应该放在一个通用寄存器中
+                                             // 并将其传递给上面的 jr 指令。
             in("a0") trap_cx_ptr,      // a0 = virt addr of Trap Context
             in("a1") user_satp,        // a1 = phy addr of usr page table
             options(noreturn)

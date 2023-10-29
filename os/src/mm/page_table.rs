@@ -145,7 +145,7 @@ impl PageTable {
     }
     /// get the token from the page table
     pub fn token(&self) -> usize {
-        8usize << 60 | self.root_ppn.0
+        8usize << 60 | self.root_ppn.0 // 最高 4 位是 8 意味着使用 SV39 分页格式
     }
 }
 

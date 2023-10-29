@@ -32,6 +32,7 @@ pub struct TaskControlBlock {
 
 impl TaskControlBlock {
     /// get the trap context
+    /// 通过物理地址转化为结构体的引用
     pub fn get_trap_cx(&self) -> &'static mut TrapContext {
         self.trap_cx_ppn.get_mut()
     }
@@ -65,7 +66,7 @@ impl TaskControlBlock {
             program_brk: user_sp,
         };
         // prepare TrapContext in user space
-        let trap_cx = task_control_block.get_trap_cx();
+        let trap_cx = task_control_block.get_trap_cx(); // 通过物理地址转化为结构体的引用
         *trap_cx = TrapContext::app_init_context(
             entry_point,
             user_sp,

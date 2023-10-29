@@ -45,8 +45,10 @@ trait FrameAllocator {
 }
 /// an implementation for frame allocator
 pub struct StackFrameAllocator {
+    // 物理页号区间 [current, end) 此前均 从未 被分配出去过
     current: usize,
     end: usize,
+    // recycled 以后入先出的方式保存了被回收的物理页号
     recycled: Vec<usize>,
 }
 
@@ -99,6 +101,7 @@ pub fn init_frame_allocator() {
         fn ekernel();
     }
     FRAME_ALLOCATOR.exclusive_access().init(
+        // ekernel: 内核数据的终止物理地址，在它之后的物理内存都是可用的
         PhysAddr::from(ekernel as usize).ceil(),
         PhysAddr::from(MEMORY_END).floor(),
     );

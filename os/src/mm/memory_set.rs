@@ -52,6 +52,7 @@ impl MemorySet {
         self.page_table.token()
     }
     /// Assume that no conflicts.
+    /// 在当前地址空间插入一个 Framed 方式映射到 物理内存的逻辑段。
     pub fn insert_framed_area(
         &mut self,
         start_va: VirtAddr,
@@ -63,6 +64,8 @@ impl MemorySet {
             None,
         );
     }
+
+    /// 对于一个给定的逻辑段 map_area, 在自己的 page_table 上创建其映射. 并将其添加到自己的逻辑段的集合中
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
@@ -226,7 +229,7 @@ impl MemorySet {
         let satp = self.page_table.token();
         unsafe {
             satp::write(satp);
-            asm!("sfence.vma");
+            asm!("sfence.vma"); // 快表清空
         }
     }
     /// Translate a virtual page number to a page table entry
@@ -287,6 +290,10 @@ impl MapArea {
             map_perm,
         }
     }
+    /// 新建一个虚拟页到物理页的映射
+    /// 如果映射类型是MapType::Framed: 从 FRAME_ALLOCATOR 处分配一个物理页frame, 并将 vpn 和 frame 插入到 data_frames 中
+    /// 如果映射类型是MapType::Identical, ppn和vpn相等
+    /// 无论是那种类型, 都在page_table中插入 vpn 到 ppn 的映射
     pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         let ppn: PhysPageNum;
         match self.map_type {
@@ -309,6 +316,8 @@ impl MapArea {
         }
         page_table.unmap(vpn);
     }
+
+    /// 对于一个逻辑段, 循环调用 map_one 在给定的 page_table 创建虚拟地址到物理地址的映射
     pub fn map(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.map_one(page_table, vpn);
@@ -336,6 +345,7 @@ impl MapArea {
     }
     /// data: start-aligned but maybe with shorter length
     /// assume that all frames were cleared before
+    /// 将切片 data 中的数据拷贝到当前逻辑段实际被内核放置在的各物理页帧上
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
         let mut start: usize = 0;
