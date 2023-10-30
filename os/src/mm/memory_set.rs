@@ -37,6 +37,7 @@ lazy_static! {
 pub struct MemorySet {
     page_table: PageTable,
     areas: Vec<MapArea>,
+    map_tree: BTreeMap<VirtPageNum, FrameTracker>,
 }
 
 impl MemorySet {
@@ -45,6 +46,7 @@ impl MemorySet {
         Self {
             page_table: PageTable::new(),
             areas: Vec::new(),
+            map_tree: BTreeMap::new(),
         }
     }
     /// Get the page table token
@@ -308,6 +310,7 @@ impl MemorySet {
             }
             if let Some(ppn) = frame_alloc() {
                 self.page_table.map(va_start, ppn.ppn, flags);
+                self.map_tree.insert(va_start, ppn);
             } else {
                 return -1;
             }
@@ -339,6 +342,7 @@ impl MemorySet {
                 return -1;
             }
             self.page_table.unmap(va_start);
+            self.map_tree.remove(&va_start);
             va_start.step();
         }
         0
