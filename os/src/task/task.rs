@@ -1,6 +1,7 @@
 //! Types related to task management & Functions for completely changing TCB
 use super::TaskContext;
 use super::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
+use crate::config::MAX_SYSCALL_NUM;
 use crate::config::TRAP_CONTEXT_BASE;
 use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
@@ -71,6 +72,12 @@ pub struct TaskControlBlockInner {
 
     /// Program break
     pub program_brk: usize,
+
+    /// syscall time count
+    pub sys_call_times: [u32; MAX_SYSCALL_NUM],
+
+    /// begen time
+    pub sys_call_begin: usize,
 }
 
 impl TaskControlBlockInner {
@@ -87,6 +94,32 @@ impl TaskControlBlockInner {
     }
     pub fn is_zombie(&self) -> bool {
         self.get_status() == TaskStatus::Zombie
+    }
+
+    pub fn increase_sys_call(&mut self, sys_id: usize) {
+        self.sys_call_times[sys_id] += 1;
+        if sys_id == 64 {
+            debug!(
+                "increase sys_call_times of SYSCALL_WRITE:{}",
+                self.sys_call_times[sys_id]
+            );
+        }
+    }
+
+    pub fn get_sys_call_times(&self) -> [u32; MAX_SYSCALL_NUM] {
+        self.sys_call_times.clone()
+    }
+
+    pub fn get_task_run_times(&self) -> usize {
+        self.sys_call_begin
+    }
+
+    pub fn mmap(&mut self, start: usize, len: usize, port: usize) -> isize {
+        self.memory_set.mmap(start, len, port)
+    }
+
+    pub fn munmap(&mut self, start: usize, len: usize) -> isize {
+        self.memory_set.unmmap(start, len)
     }
 }
 
@@ -122,6 +155,8 @@ impl TaskControlBlock {
                     exit_code: 0,
                     heap_bottom: user_sp,
                     program_brk: user_sp,
+                    sys_call_times: [0; MAX_SYSCALL_NUM],
+                    sys_call_begin: 0,
                 })
             },
         };
@@ -196,6 +231,8 @@ impl TaskControlBlock {
                     exit_code: 0,
                     heap_bottom: parent_inner.heap_bottom,
                     program_brk: parent_inner.program_brk,
+                    sys_call_times: parent_inner.sys_call_times.clone(),
+                    sys_call_begin: 0,
                 })
             },
         });
