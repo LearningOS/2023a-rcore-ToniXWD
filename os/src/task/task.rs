@@ -1,8 +1,8 @@
 //! Types related to task management & Functions for completely changing TCB
 use super::TaskContext;
 use super::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
-use crate::config::MAX_SYSCALL_NUM;
 use crate::config::TRAP_CONTEXT_BASE;
+use crate::config::{BIG_STRIDE, MAX_SYSCALL_NUM};
 use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
@@ -34,6 +34,12 @@ impl TaskControlBlock {
     pub fn get_user_token(&self) -> usize {
         let inner = self.inner_exclusive_access();
         inner.memory_set.token()
+    }
+
+    /// update_stride
+    pub fn update_stride(&self) {
+        let mut var = self.inner_exclusive_access();
+        var.cur_stride += BIG_STRIDE / var.pro_lev;
     }
 }
 
@@ -78,6 +84,12 @@ pub struct TaskControlBlockInner {
 
     /// begen time
     pub sys_call_begin: usize,
+
+    /// 当前 stride
+    pub cur_stride: usize,
+
+    /// 优先级等级
+    pub pro_lev: usize,
 }
 
 impl TaskControlBlockInner {
@@ -157,6 +169,8 @@ impl TaskControlBlock {
                     program_brk: user_sp,
                     sys_call_times: [0; MAX_SYSCALL_NUM],
                     sys_call_begin: 0,
+                    cur_stride: 0,
+                    pro_lev: 16,
                 })
             },
         };
@@ -233,6 +247,8 @@ impl TaskControlBlock {
                     program_brk: parent_inner.program_brk,
                     sys_call_times: parent_inner.sys_call_times.clone(),
                     sys_call_begin: 0,
+                    cur_stride: 0,
+                    pro_lev: parent_inner.pro_lev,
                 })
             },
         });

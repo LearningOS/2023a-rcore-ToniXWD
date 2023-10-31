@@ -60,6 +60,7 @@ pub fn run_tasks() {
     loop {
         let mut processor = PROCESSOR.exclusive_access();
         if let Some(task) = fetch_task() {
+            task.update_stride();
             let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
             // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
@@ -70,7 +71,7 @@ pub fn run_tasks() {
             if task_inner.sys_call_begin == 0 {
                 task_inner.sys_call_begin = get_time_us() / 1000;
             }
-            
+
             // release coming task_inner manually
             drop(task_inner);
             // release coming task TCB manually

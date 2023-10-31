@@ -6,10 +6,20 @@ use crate::{
     loader::get_app_data_by_name,
     mm::{translated_refmut, translated_str},
     task::{
-        add_task, current_task, current_user_token, exit_current_and_run_next,
+        add_task,
+        current_task,
+        current_user_token,
+        exit_current_and_run_next,
+        get_sys_call_times,
+        get_task_run_times,
+        select_cur_task_to_mmap,
+        select_cur_task_to_munmap,
         // suspend_current_and_run_next, TaskStatus,
-        suspend_current_and_run_next, TaskControlBlock, TaskStatus, get_sys_call_times, get_task_run_times, select_cur_task_to_mmap, select_cur_task_to_munmap,
-    }, timer::get_time_us,
+        suspend_current_and_run_next,
+        TaskControlBlock,
+        TaskStatus,
+    },
+    timer::get_time_us,
 };
 
 #[repr(C)]
@@ -202,6 +212,7 @@ pub fn sys_spawn(_path: *const u8) -> isize {
         let mut child_inner = child_block.inner_exclusive_access();
         child_inner.parent = Some(Arc::downgrade(&current_task));
         current_inner.children.push(child_block.clone());
+        add_task(child_block.clone());
         return child_block.pid.0 as isize;
     }
     -1
@@ -213,5 +224,9 @@ pub fn sys_set_priority(_prio: isize) -> isize {
         "kernel:pid[{}] sys_set_priority NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    if _prio < 2 {
+        return -1;
+    }
+    current_task().unwrap().inner_exclusive_access().pro_lev = _prio as usize;
+    _prio
 }
