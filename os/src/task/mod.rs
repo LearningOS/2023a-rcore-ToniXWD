@@ -60,6 +60,8 @@ pub const IDLE_PID: usize = 0;
 /// Exit the current 'Running' task and run the next task in task list.
 pub fn exit_current_and_run_next(exit_code: i32) {
     // take from Processor
+    // 调用 take_current_task 来将当前进程控制块从处理器监控 PROCESSOR 中取出，而不只是得到一份拷贝，
+    // 这是为了正确维护进程控制块的引用计数；
     let task = take_current_task().unwrap();
 
     let pid = task.getpid();

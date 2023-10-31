@@ -38,10 +38,12 @@ impl TaskControlBlock {
 
 pub struct TaskControlBlockInner {
     /// The physical page number of the frame where the trap context is placed
+    /// 应用地址空间中的 Trap 上下文被放在的物理页帧的物理页号
     pub trap_cx_ppn: PhysPageNum,
 
     /// Application data can only appear in areas
     /// where the application address space is lower than base_size
+    /// 应用数据仅有可能出现在应用地址空间低于 base_size 字节的区域中
     pub base_size: usize,
 
     /// Save task context
@@ -55,6 +57,7 @@ pub struct TaskControlBlockInner {
 
     /// Parent process of the current process.
     /// Weak will not affect the reference count of the parent
+    /// 使用 Weak 而非 Arc 来包裹另一个任务控制块，因此这个智能指针将不会影响父进程的引用计数。
     pub parent: Option<Weak<TaskControlBlock>>,
 
     /// A vector containing TCBs of all child processes of the current process
@@ -91,6 +94,7 @@ impl TaskControlBlock {
     /// Create a new process
     ///
     /// At present, it is only used for the creation of initproc
+    /// 目前仅用于内核中手动创建唯一一个初始进程 initproc
     pub fn new(elf_data: &[u8]) -> Self {
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
@@ -145,6 +149,7 @@ impl TaskControlBlock {
         // **** access current TCB exclusively
         let mut inner = self.inner_exclusive_access();
         // substitute memory_set
+        // 原有地址空间生命周期结束，里面包含的全部物理页帧都会被回收；
         inner.memory_set = memory_set;
         // update trap_cx ppn
         inner.trap_cx_ppn = trap_cx_ppn;
