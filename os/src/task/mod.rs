@@ -22,7 +22,7 @@ mod switch;
 #[allow(rustdoc::private_intra_doc_links)]
 mod task;
 
-use crate::fs::{open_file, OpenFlags};
+use crate::{fs::{open_file, OpenFlags}, config::MAX_SYSCALL_NUM};
 use alloc::sync::Arc;
 pub use context::TaskContext;
 use lazy_static::*;
@@ -119,4 +119,44 @@ lazy_static! {
 ///Add init process to the manager
 pub fn add_initproc() {
     add_task(INITPROC.clone());
+}
+
+/// Increase the sys call count
+pub fn increase_sys_call(sys_id: usize) {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .increase_sys_call(sys_id)
+}
+
+/// return the sys count array of the current task
+pub fn get_sys_call_times() -> [u32; MAX_SYSCALL_NUM] {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .get_sys_call_times()
+}
+
+/// return the sys count array of the current task
+pub fn get_task_run_times() -> usize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .get_task_run_times()
+}
+
+/// select_cur_task_to_mmap
+pub fn select_cur_task_to_mmap(start: usize, len: usize, port: usize) -> isize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .mmap(start, len, port)
+}
+
+/// select_cur_task_to_mmap
+pub fn select_cur_task_to_munmap(start: usize, len: usize) -> isize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .munmap(start, len)
 }
