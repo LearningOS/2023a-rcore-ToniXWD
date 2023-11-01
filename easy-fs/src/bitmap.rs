@@ -6,7 +6,9 @@ type BitmapBlock = [u64; 64];
 const BLOCK_BITS: usize = BLOCK_SZ * 8;
 /// A bitmap
 pub struct Bitmap {
+    // 位图起始的block id
     start_block_id: usize,
+    // block的数量
     blocks: usize,
 }
 

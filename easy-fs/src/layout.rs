@@ -23,6 +23,8 @@ const INDIRECT2_BOUND: usize = INDIRECT1_BOUND + INODE_INDIRECT2_COUNT;
 /// Super block of a filesystem
 #[repr(C)]
 pub struct SuperBlock {
+    // total_block 给出文件系统的总块数。
+    // 后面的四个字段则分别给出 easy-fs 布局中后四个连续区域的长度各为多少个块
     magic: u32,
     pub total_blocks: u32,
     pub inode_bitmap_blocks: u32,
@@ -162,9 +164,12 @@ impl DiskInode {
         }
     }
     /// Inncrease the size of current disk inode
+    // TODO: 阅读increase_size
     pub fn increase_size(
         &mut self,
+        // 扩充之后的文件大小
         new_size: u32,
+        // 保存了本次容量扩充所需块编号的向量，这些块都是由上层的磁盘块管理器负责分配的
         new_blocks: Vec<u32>,
         block_device: &Arc<dyn BlockDevice>,
     ) {
@@ -237,6 +242,7 @@ impl DiskInode {
 
     /// Clear size to zero and return blocks that should be deallocated.
     /// We will clear the block contents to zero later.
+    /// 将回收的所有块的编号保存在一个向量中返回给磁盘块管理器
     pub fn clear_size(&mut self, block_device: &Arc<dyn BlockDevice>) -> Vec<u32> {
         let mut v: Vec<u32> = Vec::new();
         let mut data_blocks = self.data_blocks() as usize;
@@ -324,6 +330,7 @@ impl DiskInode {
         let mut read_size = 0usize;
         loop {
             // calculate end of current block
+            // end_current_block: 到当前block末尾处包含了多少个字节
             let mut end_current_block = (start / BLOCK_SZ + 1) * BLOCK_SZ;
             end_current_block = end_current_block.min(end);
             // read and update read size

@@ -12,6 +12,7 @@ struct BlockFile(Mutex<File>);
 impl BlockDevice for BlockFile {
     fn read_block(&self, block_id: usize, buf: &mut [u8]) {
         let mut file = self.0.lock().unwrap();
+        // 将文件指针移动到要读取的块的开始位置。
         file.seek(SeekFrom::Start((block_id * BLOCK_SZ) as u64))
             .expect("Error when seeking!");
         assert_eq!(file.read(buf).unwrap(), BLOCK_SZ, "Not a complete block!");
