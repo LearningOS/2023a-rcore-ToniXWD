@@ -32,14 +32,16 @@ pub struct TaskInfo {
     time: usize,
 }
 
+/// task exits and submit an exit code
 pub fn sys_exit(exit_code: i32) -> ! {
     trace!("kernel:pid[{}] sys_exit", current_task().unwrap().pid.0);
     exit_current_and_run_next(exit_code);
     panic!("Unreachable in sys_exit!");
 }
 
+/// current task gives up resources for other tasks
 pub fn sys_yield() -> isize {
-    //trace!("kernel: sys_yield");
+    trace!("kernel:pid[{}] sys_yield", current_task().unwrap().pid.0);
     suspend_current_and_run_next();
     0
 }
@@ -58,9 +60,11 @@ pub fn sys_fork() -> isize {
     let trap_cx = new_task.inner_exclusive_access().get_trap_cx();
     // we do not have to move to next instruction since we have done it before
     // for child process, fork returns 0
+    // 将子进程的 Trap 上下文中用来存放系统调用返回值的 a0 寄存器修改为 0
     trap_cx.x[10] = 0;
     // add new task to scheduler
     add_task(new_task);
+    // 父进程系统调用的返回值
     new_pid as isize
 }
 

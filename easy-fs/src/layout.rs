@@ -6,9 +6,9 @@ use core::fmt::{Debug, Formatter, Result};
 /// Magic number for sanity check
 const EFS_MAGIC: u32 = 0x3b800001;
 /// The max number of direct inodes
-const INODE_DIRECT_COUNT: usize = 28;
+const INODE_DIRECT_COUNT: usize = 27;
 /// The max length of inode name
-const NAME_LENGTH_LIMIT: usize = 27;
+pub const NAME_LENGTH_LIMIT: usize = 27;
 /// The max number of indirect1 inodes
 const INODE_INDIRECT1_COUNT: usize = BLOCK_SZ / 4;
 /// The max number of indirect2 inodes
@@ -88,6 +88,7 @@ pub struct DiskInode {
     pub indirect1: u32,
     pub indirect2: u32,
     type_: DiskInodeType,
+    pub refcont: u32, // 新增这个变量后需要将 INODE_DIRECT_COUNT - 1
 }
 
 impl DiskInode {
@@ -99,6 +100,7 @@ impl DiskInode {
         self.indirect1 = 0;
         self.indirect2 = 0;
         self.type_ = type_;
+        self.refcont = 1; // 初始化引用计数为1
     }
     /// Whether this inode is a directory
     pub fn is_dir(&self) -> bool {
@@ -394,12 +396,31 @@ impl DiskInode {
         }
         write_size
     }
+
+    pub fn decrease_refcont(&mut self) {
+        self.refcont -= 1;
+    }
+
+    pub fn increase_refcont(&mut self) {
+        self.refcont += 1;
+    }
+
+    pub fn can_remove(&self) -> bool {
+        self.refcont == 0
+    }
+
+    pub fn get_statmode(&self) -> usize {
+        match self.type_ {
+            DiskInodeType::File => 1,
+            DiskInodeType::Directory => 2,
+        }
+    }
 }
 /// A directory entry
 #[repr(C)]
 pub struct DirEntry {
-    name: [u8; NAME_LENGTH_LIMIT + 1],
-    inode_id: u32,
+    pub(crate) name: [u8; NAME_LENGTH_LIMIT + 1],
+    pub(crate) inode_id: u32,
 }
 /// Size of a directory entry
 pub const DIRENT_SZ: usize = 32;
