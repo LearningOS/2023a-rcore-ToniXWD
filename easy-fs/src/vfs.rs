@@ -1,3 +1,5 @@
+use crate::BLOCK_SZ;
+
 use super::{
     block_cache_sync_all, get_block_cache, BlockDevice, DirEntry, DiskInode, DiskInodeType,
     EasyFileSystem, DIRENT_SZ,
@@ -305,15 +307,30 @@ impl Inode {
         block_cache_sync_all();
     }
 
-    /// fstat
+    /// fstat_statmode
     pub fn fstat_statmode(&self) -> usize {
         let mut _fs = self.fs.lock();
         self.read_disk_inode(|node| node.get_statmode())
     }
 
-    /// fstat
+    /// fstat_nlink
+    /// 获取文件类型
+    /// return
+    ///     1 :File
+    ///     2 :Directory
     pub fn fstat_nlink(&self) -> u32 {
         let mut _fs = self.fs.lock();
         self.read_disk_inode(|node| node.refcont)
+    }
+
+    /// fstat_nlink
+    /// 获取文件inode id
+    pub fn fstat_inode_id(&self) -> u64 {
+        let block_begin = self.fs.lock().inode_area_start_block as usize;
+
+        let inode_size = core::mem::size_of::<DiskInode>();
+        let inodes_per_block = BLOCK_SZ / inode_size;
+        let r = (self.block_id - block_begin) * inodes_per_block + self.block_offset / inode_size;
+        r as u64
     }
 }

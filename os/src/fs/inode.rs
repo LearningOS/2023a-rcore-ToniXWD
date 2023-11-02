@@ -169,14 +169,15 @@ impl File for OSInode {
 
     fn fstat(&self, stat: &mut super::Stat) -> isize {
         stat.dev = 0;
-        let inner = self.inner.exclusive_access();
-        match inner.inode.fstat_statmode() {
+        let inner_inode = &self.inner.exclusive_access().inode;
+        match inner_inode.fstat_statmode() {
             1 => stat.mode = StatMode::FILE,
             2 => stat.mode = StatMode::DIR,
             _ => stat.mode = StatMode::NULL,
         };
-        stat.ino = 0;
-        stat.nlink = inner.inode.fstat_nlink();
+        stat.ino = inner_inode.fstat_inode_id();
+
+        stat.nlink = inner_inode.fstat_nlink();
         0
     }
 }

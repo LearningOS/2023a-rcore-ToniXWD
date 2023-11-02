@@ -408,7 +408,10 @@ impl DiskInode {
     pub fn can_remove(&self) -> bool {
         self.refcont == 0
     }
-
+    /// 获取文件类型
+    /// return
+    ///     1 :File
+    ///     2 :Directory
     pub fn get_statmode(&self) -> usize {
         match self.type_ {
             DiskInodeType::File => 1,

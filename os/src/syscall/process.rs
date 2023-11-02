@@ -198,7 +198,7 @@ pub fn sys_spawn(_path: *const u8) -> isize {
     let path = translated_str(token, _path);
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
         let all_data = app_inode.read_all();
-        let data = &all_data.as_slice();
+        let data = all_data.as_slice();
         let child_block = Arc::new(TaskControlBlock::new(data));
         let mut child_inner = child_block.inner_exclusive_access();
         child_inner.parent = Some(Arc::downgrade(&current_task));

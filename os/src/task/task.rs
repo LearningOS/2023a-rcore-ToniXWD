@@ -15,6 +15,7 @@ use core::cell::RefMut;
 /// Task control block structure
 ///
 /// Directly save the contents that will not change during running
+#[repr(align(64))]
 pub struct TaskControlBlock {
     // Immutable
     /// Process identifier
