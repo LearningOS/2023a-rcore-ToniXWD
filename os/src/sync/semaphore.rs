@@ -34,8 +34,9 @@ impl Semaphore {
         trace!("kernel: Semaphore::up");
         let mut inner = self.inner.exclusive_access();
         inner.count += 1;
-        if inner.count <= 0 {
+        if inner.count <= 0 { // TODO 为什么是 <= 0 ?
             if let Some(task) = inner.wait_queue.pop_front() {
+                // 将从信号量的等待队列中弹出一个线程放入线程就绪队列
                 wakeup_task(task);
             }
         }
