@@ -49,12 +49,12 @@ pub struct ProcessControlBlockInner {
     pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
     /// condvar list
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
-    /// m_available
-    pub m_available: Vec<usize>,
-    /// s_available
-    pub s_available: Vec<usize>,
-    /// use deadlock detection
-    pub use_dead_lock: bool,
+    /// deadlock detect
+    pub deadlock_detect: bool,
+    /// mutex_avail
+    pub mutex_avail: Vec<usize>,
+    /// sem_avail
+    pub sem_avail: Vec<usize>,
 }
 
 impl ProcessControlBlockInner {
@@ -87,24 +87,6 @@ impl ProcessControlBlockInner {
     /// get a task with tid in this process
     pub fn get_task(&self, tid: usize) -> Arc<TaskControlBlock> {
         self.tasks[tid].as_ref().unwrap().clone()
-    }
-
-    /// increase m_available
-    pub fn adjust_m_available(&mut self, target_id: usize, num: usize) {
-        let desired_length = target_id + 1; // 指定的长度
-        if self.m_available.len() < desired_length {
-            self.m_available.resize(desired_length, 0);
-        }
-        self.m_available[target_id] += num;
-    }
-
-    /// increase s_available
-    pub fn adjust_s_available(&mut self, target_id: usize, num: usize) {
-        let desired_length = target_id + 1; // 指定的长度
-        if self.s_available.len() < desired_length {
-            self.s_available.resize(desired_length, 0);
-        }
-        self.s_available[target_id] += num;
     }
 }
 
@@ -143,14 +125,12 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
-
-                    use_dead_lock: false,
-                    m_available: Vec::new(),
-                    s_available: Vec::new(),
+                    deadlock_detect: false,
+                    mutex_avail: Vec::new(),
+                    sem_avail: Vec::new(),
                 })
             },
         });
-
         // create a main thread, we should allocate ustack and trap_cx here
         let task = Arc::new(TaskControlBlock::new(
             Arc::clone(&process),
@@ -250,6 +230,8 @@ impl ProcessControlBlock {
         let pid = pid_alloc();
         // copy fd table
         let mut new_fd_table: Vec<Option<Arc<dyn File + Send + Sync>>> = Vec::new();
+        // copy deadlock detect
+        let deadlock_detect = parent.deadlock_detect;
         for fd in parent.fd_table.iter() {
             if let Some(file) = fd {
                 new_fd_table.push(Some(file.clone()));
@@ -274,9 +256,9 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
-                    use_dead_lock: parent.use_dead_lock,
-                    m_available: parent.m_available.clone(),
-                    s_available: parent.s_available.clone(),
+                    deadlock_detect,
+                    mutex_avail: Vec::new(),
+                    sem_avail: Vec::new(),
                 })
             },
         });
