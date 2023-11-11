@@ -84,11 +84,25 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
         if arg_str_ptr == 0 {
             break;
         }
-        args_vec.push(translated_str(token, arg_str_ptr as *const u8));
+        
         unsafe {
             args = args.add(1);
         }
+
+        let s = translated_str(token, arg_str_ptr as *const u8);
+        // if s == path {
+        //     // 如果这个参数与运行的文件名相同, 跳过
+        //     continue;
+        // }
+        
+        args_vec.push(s);
     }
+    trace!("args_vec.len() = {}", args_vec.len());
+
+    for i in 0..args_vec.len() {
+        trace!("args_vec[{}] = {}",i, &args_vec[i]);
+    }
+
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
         let all_data = app_inode.read_all();
         let process = current_process();
