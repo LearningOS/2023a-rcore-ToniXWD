@@ -37,10 +37,10 @@ TEST ?=
 build: env $(KERNEL_BIN) fs-img 
 
 env:
-	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET)
-	cargo install cargo-binutils
-	rustup component add rust-src
-	rustup component add llvm-tools-preview
+# (rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET)
+# cargo install cargo-binutils
+# rustup component add rust-src
+# rustup component add llvm-tools-preview
 
 $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
@@ -50,10 +50,12 @@ fs-img: $(APPS)
 	@make -C ../testcases build
 	@rm -f $(FS_IMG)
 	@cp ../user/build/elf/* ../testcases/build/
+# @cd ../easy-fs-fuse && cargo run -- -s ../testcases/build -o ../os/$(FS_IMG)
 	@cd ../easy-fs-fuse && cargo run --release -- -s ../testcases/build -o ../os/$(FS_IMG)
 
 kernel:
 	@echo Platform: $(BOARD)
+# @cargo build
 	@cargo build --release
 
 clean:
