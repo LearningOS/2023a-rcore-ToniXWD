@@ -202,29 +202,44 @@ impl ProcessControlBlock {
         // push arguments on user stack
         trace!("kernel: exec .. push arguments on user stack");
         let mut user_sp = task_inner.res.as_mut().unwrap().ustack_top();
-        user_sp -= (args.len() + 1) * core::mem::size_of::<usize>();
-        let argv_base = user_sp;
-        let mut argv: Vec<_> = (0..=args.len())
-            .map(|arg| {
-                translated_refmut(
-                    new_token,
-                    (argv_base + arg * core::mem::size_of::<usize>()) as *mut usize,
-                )
-            })
-            .collect();
-        *argv[args.len()] = 0;
-        for i in 0..args.len() {
-            user_sp -= args[i].len() + 1;
-            *argv[i] = user_sp;
+
+        let argc = args.len();
+
+        let total_size = (argc + 1) * core::mem::size_of::<usize>()
+            + args.iter().map(|s| s.len() + 1).sum::<usize>();
+
+        // make the user_sp aligned to 8B for k210 platform
+        user_sp -= core::mem::size_of::<usize>() - total_size % core::mem::size_of::<usize>();
+
+        let mut argv_addr = Vec::new();
+
+        // 初始化参数字符串
+        for i in 0..argc {
+            // 预留\0字符作为结束符
+            user_sp -= args[argc - i - 1].len() + 1;
+            argv_addr.push(user_sp);
             let mut p = user_sp;
-            for c in args[i].as_bytes() {
+            for c in args[argc - i - 1].as_bytes() {
                 *translated_refmut(new_token, p as *mut u8) = *c;
                 p += 1;
             }
+            // 每个字符串需要填充一个\0字符作为结束符
             *translated_refmut(new_token, p as *mut u8) = 0;
         }
-        // make the user_sp aligned to 8B for k210 platform
-        user_sp -= user_sp % core::mem::size_of::<usize>();
+
+        // 初始化参数指针
+        for _ in 0..argc {
+            user_sp -= core::mem::size_of::<usize>();
+            let p = user_sp;
+            let cur_addr = argv_addr.pop().unwrap();
+            *translated_refmut(new_token, p as *mut usize) = cur_addr;
+        }
+
+        // 初始化argc
+        user_sp -= core::mem::size_of::<usize>();
+        let p = user_sp;
+        *translated_refmut(new_token, p as *mut usize) = argc;
+
         // initialize trap_cx
         trace!("kernel: exec .. initialize trap_cx");
         let mut trap_cx = TrapContext::app_init_context(
@@ -234,8 +249,8 @@ impl ProcessControlBlock {
             task.kstack.get_top(),
             trap_handler as usize,
         );
-        trap_cx.x[10] = args.len();
-        trap_cx.x[11] = argv_base;
+        trap_cx.x[10] = argc;
+        trap_cx.x[11] = user_sp + core::mem::size_of::<usize>();
         *task_inner.get_trap_cx() = trap_cx;
     }
 
