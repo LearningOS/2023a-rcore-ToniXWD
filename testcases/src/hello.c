@@ -6,6 +6,7 @@ extern void exit(int code);
 int main(int argc, char *argv[]) {
     char greeting[11] = "my name is ";
     char error[15] = "Incorrect argc\n";
+    
     if (argc != 1) {
         write(1, error, 15);
         return 1;

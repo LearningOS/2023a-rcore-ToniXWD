@@ -1,6 +1,6 @@
 # Building
 TARGET := riscv64gc-unknown-none-elf
-MODE := release
+MODE := debug
 KERNEL_ELF := target/$(TARGET)/$(MODE)/os
 KERNEL_BIN := $(KERNEL_ELF).bin
 DISASM_TMP := target/$(TARGET)/$(MODE)/asm
@@ -50,13 +50,13 @@ fs-img: $(APPS)
 	@make -C ../testcases build
 	@rm -f $(FS_IMG)
 	@cp ../user/build/elf/* ../testcases/build/
-# @cd ../easy-fs-fuse && cargo run -- -s ../testcases/build -o ../os/$(FS_IMG)
-	@cd ../easy-fs-fuse && cargo run --release -- -s ../testcases/build -o ../os/$(FS_IMG)
+	@cd ../easy-fs-fuse && cargo run -- -s ../testcases/build -o ../os/$(FS_IMG)
+# @cd ../easy-fs-fuse && cargo run --release -- -s ../testcases/build -o ../os/$(FS_IMG)
 
 kernel:
 	@echo Platform: $(BOARD)
-# @cargo build
-	@cargo build --release
+	@cargo build
+# @cargo build --release
 
 clean:
 	@cargo clean
