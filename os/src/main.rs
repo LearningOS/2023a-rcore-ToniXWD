@@ -51,6 +51,10 @@ pub mod task;
 pub mod timer;
 pub mod trap;
 
+#[allow(missing_docs)]
+#[allow(warnings)]
+pub mod loaders;
+
 use core::arch::global_asm;
 
 global_asm!(include_str!("entry.asm"));
