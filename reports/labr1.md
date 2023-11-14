@@ -41,7 +41,7 @@
 1. 原因分析
    阅读原`rCore`[文档](http://learningos.cn/rCore-Tutorial-Guide-2023A/chapter7/2cmdargs-and-redirection.html)与本实验[文档](https://scpointer.github.io/rcore2oscomp/docs/lab1/clib.html)
    可以看出, 二者的栈分布是不同的, 先看旧的栈内存分布
-   ![img](./img/旧栈内存分布.png)
+   ![img](./img/旧栈内存分布.png)<br>
    可以看到在此栈的内存分布中, 实际的参数放在接近栈底的位置, 其指向的实际参数在靠近栈顶的位置, 并且通过阅读源码`process.rs`中的`exec`:
     ```rust
     trap_cx.x[10] = args.len();
@@ -49,7 +49,7 @@
     ```
     可知参数个数`argc`时通过手动计算`args`的长度计算得到的, 并没有存储在栈上。
     阅读本实验指导书可知，C程序的栈内存分布如下：
-   ![img](./img/新栈内存分布.png)
+   ![img](./img/新栈内存分布.png)<br>
    在此栈的内存分布中, 实际的参数放在接近栈顶的位置, 其指向的实际参数在靠近栈底的位置， 并且栈指针指向了`argc`
    而且由`testcases/lib/main.c`可知:
     ```C
@@ -94,7 +94,7 @@
     >> hello xwd
     my name is xwdShell: Process 2 exited with code 0
     ```
-    ![结果截图](./img/lab1-result.png)
+    ![结果截图](./img/lab1-result.png)<br>
 
 # 2 问答作业
 1. elf 文件和 bin 文件有什么区别？

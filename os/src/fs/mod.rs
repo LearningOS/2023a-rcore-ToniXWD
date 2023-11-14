@@ -1,7 +1,6 @@
 //! File trait & inode(dir, file, pipe, stdin, stdout)
 
 mod inode;
-mod iov;
 mod pipe;
 mod stdio;
 
@@ -49,6 +48,5 @@ bitflags! {
 }
 
 pub use inode::{list_apps, open_file, OSInode, OpenFlags};
-pub use iov::IOV;
 pub use pipe::{make_pipe, Pipe};
 pub use stdio::{Stdin, Stdout};
