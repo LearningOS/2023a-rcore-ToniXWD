@@ -1,5 +1,7 @@
-use crate::fs::{make_pipe, open_file, OpenFlags, Stat};
-use crate::mm::{translated_byte_buffer, translated_refmut, translated_str, UserBuffer};
+use crate::fs::{make_pipe, open_file, OpenFlags, Stat, IOV};
+use crate::mm::{
+    translated_byte_buffer, translated_refmut, translated_str, UserBuffer,
+};
 use crate::task::{current_process, current_task, current_user_token};
 use alloc::sync::Arc;
 /// write syscall
@@ -148,4 +150,41 @@ pub fn sys_unlinkat(_name: *const u8) -> isize {
         current_task().unwrap().process.upgrade().unwrap().getpid()
     );
     -1
+}
+
+/// iotcl
+#[allow(unused)]
+pub fn sys_ioctl(_fd: usize, request: usize) -> isize {
+    trace!(
+        "kernel:pid[{}] sys_set_priority NOT IMPLEMENTED",
+        current_task().unwrap().process.upgrade().unwrap().getpid()
+    );
+    0
+}
+
+/// writev
+#[allow(unused)]
+pub fn sys_writev(_fd: usize, mut iov: *mut usize, iovcnt: usize) -> isize {
+    trace!(
+        "kernel:pid[{}] sys_writev",
+        current_task().unwrap().process.upgrade().unwrap().getpid()
+    );
+    let mut len = 0;
+    let token = current_user_token();
+    let mut iov = iov as *mut IOV;
+    // error!("iov.len() = {}", iovcnt);
+    for i in 0..iovcnt {
+        // error!("iov[{}]", i);
+        let k_iov: &mut IOV = translated_refmut(token, iov as *mut IOV);
+        iov = unsafe { iov.add(1) };
+
+        let res = sys_write(_fd, k_iov.buf_addr, k_iov.size);
+        // error!("sys_write success");
+
+        if res == -1 {
+            return -1;
+        }
+        len += res;
+    }
+    len
 }
