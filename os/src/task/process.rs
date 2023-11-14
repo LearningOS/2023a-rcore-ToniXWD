@@ -6,7 +6,8 @@ use super::TaskControlBlock;
 use super::{add_task, SignalFlags};
 use super::{pid_alloc, PidHandle};
 use crate::fs::{File, Stdin, Stdout};
-use crate::mm::{translated_refmut, MemorySet, KERNEL_SPACE};
+use crate::loaders::ElfLoader;
+use crate::mm::{MemorySet, KERNEL_SPACE};
 use crate::sync::{Condvar, Mutex, Semaphore, UPSafeCell};
 use crate::trap::{trap_handler, TrapContext};
 use alloc::string::String;
@@ -201,56 +202,59 @@ impl ProcessControlBlock {
         task_inner.trap_cx_ppn = task_inner.res.as_mut().unwrap().trap_cx_ppn();
         // push arguments on user stack
         trace!("kernel: exec .. push arguments on user stack");
-        let mut user_sp = task_inner.res.as_mut().unwrap().ustack_top();
+        let user_sp = task_inner.res.as_mut().unwrap().ustack_top();
 
-        let argc = args.len();
+        let argc: usize = args.len();
 
-        let total_size = (argc + 1) * core::mem::size_of::<usize>()
-            + args.iter().map(|s| s.len() + 1).sum::<usize>();
+        let loader = ElfLoader::new(elf_data).unwrap();
+        let sp = loader.init_stack(new_token, user_sp, args);
 
-        // make the user_sp aligned to 8B for k210 platform
-        user_sp -= core::mem::size_of::<usize>() - total_size % core::mem::size_of::<usize>();
+        // let total_size = (argc + 1) * core::mem::size_of::<usize>()
+        //     + args.iter().map(|s| s.len() + 1).sum::<usize>();
 
-        let mut argv_addr = Vec::new();
+        // // make the user_sp aligned to 8B for k210 platform
+        // user_sp -= core::mem::size_of::<usize>() - total_size % core::mem::size_of::<usize>();
 
-        // 初始化参数字符串
-        for i in 0..argc {
-            // 预留\0字符作为结束符
-            user_sp -= args[argc - i - 1].len() + 1;
-            argv_addr.push(user_sp);
-            let mut p = user_sp;
-            for c in args[argc - i - 1].as_bytes() {
-                *translated_refmut(new_token, p as *mut u8) = *c;
-                p += 1;
-            }
-            // 每个字符串需要填充一个\0字符作为结束符
-            *translated_refmut(new_token, p as *mut u8) = 0;
-        }
+        // let mut argv_addr = Vec::new();
 
-        // 初始化参数指针
-        for _ in 0..argc {
-            user_sp -= core::mem::size_of::<usize>();
-            let p = user_sp;
-            let cur_addr = argv_addr.pop().unwrap();
-            *translated_refmut(new_token, p as *mut usize) = cur_addr;
-        }
+        // // 初始化参数字符串
+        // for i in 0..argc {
+        //     // 预留\0字符作为结束符
+        //     user_sp -= args[argc - i - 1].len() + 1;
+        //     argv_addr.push(user_sp);
+        //     let mut p = user_sp;
+        //     for c in args[argc - i - 1].as_bytes() {
+        //         *translated_refmut(new_token, p as *mut u8) = *c;
+        //         p += 1;
+        //     }
+        //     // 每个字符串需要填充一个\0字符作为结束符
+        //     *translated_refmut(new_token, p as *mut u8) = 0;
+        // }
 
-        // 初始化argc
-        user_sp -= core::mem::size_of::<usize>();
-        let p = user_sp;
-        *translated_refmut(new_token, p as *mut usize) = argc;
+        // // 初始化参数指针
+        // for _ in 0..argc {
+        //     user_sp -= core::mem::size_of::<usize>();
+        //     let p = user_sp;
+        //     let cur_addr = argv_addr.pop().unwrap();
+        //     *translated_refmut(new_token, p as *mut usize) = cur_addr;
+        // }
+
+        // // 初始化argc
+        // user_sp -= core::mem::size_of::<usize>();
+        // let p = user_sp;
+        // *translated_refmut(new_token, p as *mut usize) = argc;
 
         // initialize trap_cx
         trace!("kernel: exec .. initialize trap_cx");
         let mut trap_cx = TrapContext::app_init_context(
             entry_point,
-            user_sp,
+            sp,
             KERNEL_SPACE.exclusive_access().token(),
             task.kstack.get_top(),
             trap_handler as usize,
         );
         trap_cx.x[10] = argc;
-        trap_cx.x[11] = user_sp + core::mem::size_of::<usize>();
+        trap_cx.x[11] = sp + core::mem::size_of::<usize>();
         *task_inner.get_trap_cx() = trap_cx;
     }
 
